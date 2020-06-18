@@ -5,6 +5,7 @@ import six
 
 from datetime import datetime
 
+from dateutil.tz import UTC
 from rest_framework import serializers, status
 from uuid import uuid4
 
@@ -16,12 +17,11 @@ from sentry.api.fields import AvatarField
 from sentry.api.fields.empty_integer import EmptyIntegerField
 from sentry.api.serializers import serialize
 from sentry.api.serializers.models import organization as org_serializers
+from sentry.api.serializers.models.organization import TrustedRelaySerializer
 from sentry.api.serializers.rest_framework import ListField
-from sentry.api.serializers.rest_framework.base import snake_to_camel_case, convert_dict_key_case
 from sentry.constants import (
     LEGACY_RATE_LIMIT_OPTIONS,
     RESERVED_ORGANIZATION_SLUGS,
-    TRUSTED_RELAYS_DEFAULT,
 )
 from sentry.datascrubbing import validate_pii_config_update
 from sentry.lang.native.utils import STORE_CRASH_REPORTS_DEFAULT, convert_crashreport_count
@@ -37,7 +37,6 @@ from sentry.models import (
 from sentry.tasks.deletion import delete_organization
 from sentry.utils.apidocs import scenario, attach_scenarios
 from sentry.utils.cache import memoize
-from sentry_relay import PublicKey, RelayError
 
 ERR_DEFAULT_ORG = u"You cannot remove the default organization."
 ERR_NO_USER = u"This request requires an authenticated user."
@@ -121,48 +120,6 @@ def update_organization_scenario(runner):
             path="/organizations/%s/" % org.slug,
             data={"name": "Impeccably Designated", "slug": "impeccably-designated"},
         )
-
-
-class TrustedRelaySerializer(serializers.Serializer):
-    def to_representation(self, instance):
-        return convert_dict_key_case(instance, snake_to_camel_case)
-
-    def to_internal_value(self, data):
-
-        key_name = "{unknown}"
-        try:
-            key_name = data.get(u"name")
-            public_key = data.get(u"publicKey")
-
-            PublicKey.parse(public_key)
-
-            if key_name is None:
-                raise serializers.ValidationError("missing relay key name")
-
-            key_name = key_name.strip()
-
-            if len(key_name) == 0:
-                raise serializers.ValidationError(
-                    "invalid relay key name, must be non empty string"
-                )
-
-            ret_val = {
-                u"public_key": public_key,
-                u"name": key_name,
-                u"description": data.get(u"description"),
-            }
-
-            return ret_val
-        except serializers.ValidationError:
-            raise
-        except RelayError as e:
-            raise serializers.ValidationError(
-                "Invalid relay key for trusted relay:{}, e:{}".format(key_name, e)
-            )
-        except Exception as e:
-            raise serializers.ValidationError(
-                "Could not serialize trusted relay:{}, e:{}".format(key_name, e)
-            )
 
 
 class OrganizationSerializer(serializers.Serializer):
@@ -298,17 +255,13 @@ class OrganizationSerializer(serializers.Serializer):
         return attrs
 
     def save_trusted_relays(self, incoming, changed_data, organization):
-        timestamp_now = (
-            datetime.utcnow().isoformat() + "Z"
-        )  # make it utc relative with set timezone
+        timestamp_now = datetime.utcnow().replace(tzinfo=UTC).isoformat()
         option_key = "sentry:trusted-relays"
         try:
             # get what we already have
             existing = OrganizationOption.objects.get(organization=organization, key=option_key)
-            if existing is not None:
-                key_dict = {val.get("public_key"): val for val in existing.value}
-            else:
-                key_dict = {}
+
+            key_dict = {val.get("public_key"): val for val in existing.value}
         except OrganizationOption.DoesNotExist:
             key_dict = {}  # we don't have anything set
             existing = None
@@ -323,12 +276,16 @@ class OrganizationSerializer(serializers.Serializer):
 
             # check if we modified the current public_key info and update last_modified if we did
             if (
-                existing_info.get("public_key") is None
+                not existing_info
                 or existing_info.get("name") != option.get("name")
                 or existing_info.get("description") != option.get("description")
             ):
                 option["last_modified"] = timestamp_now
                 modified = True
+
+        # check to see if the only modifications were some deletions (which are not captured in the loop above)
+        if len(incoming) != len(key_dict):
+            modified = True
 
         if modified:
             # we have some modifications create a log message
@@ -466,11 +423,6 @@ class OrganizationDetailsEndpoint(OrganizationEndpoint):
             else org_serializers.DetailedOrganizationSerializer
         )
         context = serialize(organization, request.user, serializer(), access=request.access)
-        trusted_relays_raw = (
-            organization.get_option("sentry:trusted-relays", TRUSTED_RELAYS_DEFAULT) or []
-        )
-        # serialize trusted relays info into their external form
-        context["trustedRelays"] = [TrustedRelaySerializer(raw).data for raw in trusted_relays_raw]
 
         return self.respond(context)
 
@@ -526,14 +478,14 @@ class OrganizationDetailsEndpoint(OrganizationEndpoint):
                     data=changed_data,
                 )
 
-            return self.respond(
-                serialize(
-                    organization,
-                    request.user,
-                    org_serializers.DetailedOrganizationSerializerWithProjectsAndTeams(),
-                    access=request.access,
-                )
+            context = serialize(
+                organization,
+                request.user,
+                org_serializers.DetailedOrganizationSerializerWithProjectsAndTeams(),
+                access=request.access,
             )
+
+            return self.respond(context)
         return self.respond(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def handle_delete(self, request, organization):

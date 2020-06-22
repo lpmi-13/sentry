@@ -445,6 +445,15 @@ class OwnerOrganizationSerializer(OrganizationSerializer):
 class OrganizationDetailsEndpoint(OrganizationEndpoint):
     doc_section = DocSection.ORGANIZATIONS
 
+    def append_trusted_relays_info(self, organization, context):
+        """Adds the trusted realy information to the deserialized data"""
+        trusted_relays_raw = (
+            organization.get_option("sentry:trusted-relays", TRUSTED_RELAYS_DEFAULT) or []
+        )
+        # serialize trusted relays info into their external form
+        context["trustedRelays"] = [TrustedRelaySerializer(raw).data for raw in trusted_relays_raw]
+        return context
+
     @attach_scenarios([retrieve_organization_scenario])
     def get(self, request, organization):
         """
@@ -466,6 +475,10 @@ class OrganizationDetailsEndpoint(OrganizationEndpoint):
             else org_serializers.DetailedOrganizationSerializer
         )
         context = serialize(organization, request.user, serializer(), access=request.access)
+<<<<<<< HEAD
+=======
+        self.append_trusted_relays_info(organization, context)
+>>>>>>> fixed put,delete return to also include trusted relays
 
         return self.respond(context)
 
@@ -527,6 +540,7 @@ class OrganizationDetailsEndpoint(OrganizationEndpoint):
                 org_serializers.DetailedOrganizationSerializerWithProjectsAndTeams(),
                 access=request.access,
             )
+            self.append_trusted_relays_info(organization, context)
 
             return self.respond(context)
         return self.respond(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -576,6 +590,7 @@ class OrganizationDetailsEndpoint(OrganizationEndpoint):
             org_serializers.DetailedOrganizationSerializerWithProjectsAndTeams(),
             access=request.access,
         )
+        self.append_trusted_relays_info(organization, context)
         return self.respond(context, status=202)
 
     @sudo_required

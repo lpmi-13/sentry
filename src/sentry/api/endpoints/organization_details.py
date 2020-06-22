@@ -326,9 +326,8 @@ class OrganizationSerializer(serializers.Serializer):
                 option["last_modified"] = timestamp_now
                 modified = True
 
-        # check to see if the only modifications were some deletions (which are not captured in the loop above)
-        if len(incoming) != len(key_dict):
-            modified = True
+        if len(incoming) == 0 and len(key_dict) != 0:
+            modified = True  # we have removed all keys
 
         if modified:
             # we have some modifications create a log message
@@ -475,10 +474,7 @@ class OrganizationDetailsEndpoint(OrganizationEndpoint):
             else org_serializers.DetailedOrganizationSerializer
         )
         context = serialize(organization, request.user, serializer(), access=request.access)
-<<<<<<< HEAD
-=======
         self.append_trusted_relays_info(organization, context)
->>>>>>> fixed put,delete return to also include trusted relays
 
         return self.respond(context)
 

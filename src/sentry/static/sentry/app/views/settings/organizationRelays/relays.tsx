@@ -2,8 +2,8 @@ import React from 'react';
 import {RouteComponentProps} from 'react-router/lib/Router';
 import styled from '@emotion/styled';
 import {ClassNames} from '@emotion/core';
-import {isEqual} from 'lodash';
 
+import theme from 'app/utils/theme';
 import {openModal} from 'app/actionCreators/modal';
 import {PanelTable} from 'app/components/panels';
 import {t, tct} from 'app/locale';
@@ -48,14 +48,8 @@ class Relays extends AsyncComponent<Props, State> {
     return [['data', `/organizations/${this.props.organization.slug}/`]];
   }
 
-  componentDidUpdate(_prevProps: Props, prevState: State) {
-    if (
-      !isEqual(this.state?.data, prevState?.data) &&
-      this.state?.data?.trustedRelays?.length > 0 &&
-      this.state.relays.length === 0
-    ) {
-      this.setRelays(this.state.data.trustedRelays);
-    }
+  onRequestSuccess({data}: {data: Organization}) {
+    this.setRelays(data.trustedRelays);
   }
 
   setRelays = (trustedRelays: Array<Relay>) => {
@@ -157,7 +151,10 @@ class Relays extends AsyncComponent<Props, State> {
               className={css`
                 grid-template-columns: repeat(3, auto) max-content;
                 > * {
-                  padding: ${space(1)} ${space(2)};
+                  padding: ${space(1)};
+                  @media (min-width: ${theme.breakpoints[0]}) {
+                    padding: ${space(1)} ${space(2)};
+                  }
                 }
               `}
             >
@@ -246,7 +243,7 @@ const Key = styled(Text)<{content: string}>`
 
 const Actions = styled('div')`
   display: grid;
-  grid-template-columns: repeat(2, max-content);
+  grid-template-columns: auto 1fr;
   grid-gap: ${space(1)};
   align-items: center;
 `;

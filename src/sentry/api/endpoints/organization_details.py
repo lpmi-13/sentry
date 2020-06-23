@@ -37,7 +37,6 @@ from sentry.models import (
 from sentry.tasks.deletion import delete_organization
 from sentry.utils.apidocs import scenario, attach_scenarios
 from sentry.utils.cache import memoize
-from sentry_relay import PublicKey, RelayError
 
 ERR_DEFAULT_ORG = u"You cannot remove the default organization."
 ERR_NO_USER = u"This request requires an authenticated user."
@@ -121,38 +120,6 @@ def update_organization_scenario(runner):
             path="/organizations/%s/" % org.slug,
             data={"name": "Impeccably Designated", "slug": "impeccably-designated"},
         )
-
-
-class TrustedRelaySerializer(serializers.Serializer):
-    def to_representation(self, instance):
-        return convert_dict_key_case(instance, snake_to_camel_case)
-
-    def to_internal_value(self, data):
-
-        try:
-            key_name = data.get(u"name")
-            public_key = data.get(u"publicKey", "")
-            description = data.get(u"description")
-        except AttributeError:
-            raise serializers.ValidationError("invalid-message")
-
-        if key_name is None:
-            raise serializers.ValidationError("missing-name")
-
-        key_name = key_name.strip()
-
-        if len(key_name) == 0:
-            raise serializers.ValidationError("empty-name")
-
-        if len(public_key) == 0:
-            raise serializers.ValidationError("missing-publicKey:{}".format(key_name))
-
-        try:
-            PublicKey.parse(public_key)
-        except RelayError:
-            raise serializers.ValidationError("invalid-publicKey:{}".format(key_name))
-
-        return {u"public_key": public_key, u"name": key_name, u"description": description}
 
 
 class OrganizationSerializer(serializers.Serializer):
@@ -292,9 +259,8 @@ class OrganizationSerializer(serializers.Serializer):
         option_key = "sentry:trusted-relays"
         try:
             # get what we already have
-            existing = (
-                OrganizationOption.objects.get(organization=organization, key=option_key) or {}
-            )
+            existing = OrganizationOption.objects.get(organization=organization, key=option_key)
+
             key_dict = {val.get("public_key"): val for val in existing.value}
         except OrganizationOption.DoesNotExist:
             key_dict = {}  # we don't have anything set
@@ -317,8 +283,9 @@ class OrganizationSerializer(serializers.Serializer):
                 option["last_modified"] = timestamp_now
                 modified = True
 
-        if len(incoming) == 0 and len(key_dict) != 0:
-            modified = True  # we have removed all keys
+        # check to see if the only modifications were some deletions (which are not captured in the loop above)
+        if len(incoming) != len(key_dict):
+            modified = True
 
         if modified:
             # we have some modifications create a log message
@@ -435,15 +402,6 @@ class OwnerOrganizationSerializer(OrganizationSerializer):
 class OrganizationDetailsEndpoint(OrganizationEndpoint):
     doc_section = DocSection.ORGANIZATIONS
 
-    def append_trusted_relays_info(self, organization, context):
-        """Adds the trusted realy information to the deserialized data"""
-        trusted_relays_raw = (
-            organization.get_option("sentry:trusted-relays", TRUSTED_RELAYS_DEFAULT) or []
-        )
-        # serialize trusted relays info into their external form
-        context["trustedRelays"] = [TrustedRelaySerializer(raw).data for raw in trusted_relays_raw]
-        return context
-
     @attach_scenarios([retrieve_organization_scenario])
     def get(self, request, organization):
         """
@@ -465,7 +423,6 @@ class OrganizationDetailsEndpoint(OrganizationEndpoint):
             else org_serializers.DetailedOrganizationSerializer
         )
         context = serialize(organization, request.user, serializer(), access=request.access)
-        self.append_trusted_relays_info(organization, context)
 
         return self.respond(context)
 
@@ -527,7 +484,6 @@ class OrganizationDetailsEndpoint(OrganizationEndpoint):
                 org_serializers.DetailedOrganizationSerializerWithProjectsAndTeams(),
                 access=request.access,
             )
-            self.append_trusted_relays_info(organization, context)
 
             return self.respond(context)
         return self.respond(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -577,7 +533,6 @@ class OrganizationDetailsEndpoint(OrganizationEndpoint):
             org_serializers.DetailedOrganizationSerializerWithProjectsAndTeams(),
             access=request.access,
         )
-        self.append_trusted_relays_info(organization, context)
         return self.respond(context, status=202)
 
     @sudo_required

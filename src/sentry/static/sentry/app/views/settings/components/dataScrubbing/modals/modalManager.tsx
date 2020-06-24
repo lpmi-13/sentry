@@ -16,17 +16,20 @@ import handleError from './handleError';
 
 type FormProps = React.ComponentProps<typeof Form>;
 type Values = FormProps['values'];
+type EventId = FormProps['eventId'];
+type SourceSuggestions = FormProps['sourceSuggestions'];
 
 type Props<T extends ProjectId> = ModalRenderProps & {
   onSubmitSuccess: (data: T extends undefined ? Organization : Project) => void;
+  onClose: ({eventId: eventId, sourceSuggestions: SourceSuggestions}) => void;
   orgSlug: Organization['slug'];
   api: Client;
   endpoint: string;
-  sourceSuggestions: FormProps['sourceSuggestions'];
+  sourceSuggestions: SourceSuggestions;
   savedRules: Array<Rule>;
+  eventId: EventId;
   projectId?: T;
   onUpdateEventId?: FormProps['onUpdateEventId'];
-  eventId?: FormProps['eventId'];
 };
 
 type State = {
@@ -124,6 +127,13 @@ class ModalManager<
     }
   };
 
+  handleCloseModal = () => {
+    const {onClose, closeModal} = this.props;
+    // const {eventId, sourceSuggestions} = this.state;
+    // onClose({eventId, sourceSuggestions});
+    closeModal();
+  };
+
   handleChange = <R extends Rule, K extends KeysOfUnion<R>>(field: K, value: R[K]) => {
     const values = {
       ...this.state.values,
@@ -138,12 +148,12 @@ class ModalManager<
   };
 
   handleSave = async () => {
-    const {endpoint, api, onSubmitSuccess, closeModal} = this.props;
+    const {endpoint, api, onSubmitSuccess} = this.props;
     const newRules = this.getNewRules();
 
     try {
       const data = await submitRules(api, endpoint, newRules);
-      closeModal();
+      this.handleCloseModal();
       onSubmitSuccess(data);
     } catch (error) {
       this.convertRequestError(handleError(error));
@@ -182,11 +192,12 @@ class ModalManager<
 
   render() {
     const {values, errors, title, isFormValid} = this.state;
-    const {sourceSuggestions} = this.props;
+    const {sourceSuggestions, onUpdateEventId, eventId} = this.props;
 
     return (
       <Modal
         {...this.props}
+        closeModal={this.handleCloseModal}
         title={title}
         onSave={this.handleSave}
         disabled={!isFormValid}
@@ -194,6 +205,8 @@ class ModalManager<
           <Form
             onChange={this.handleChange}
             onValidate={this.handleValidate}
+            onUpdateEventId={onUpdateEventId}
+            eventId={eventId}
             errors={errors}
             values={values}
             sourceSuggestions={sourceSuggestions}

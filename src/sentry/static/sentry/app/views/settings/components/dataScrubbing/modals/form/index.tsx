@@ -39,7 +39,7 @@ type State = {
 };
 
 class Form extends React.Component<Props<Values, keyof Values>, State> {
-  state: State = {displayEventId: !!this.props.eventId};
+  state: State = {displayEventId: !!this.props.eventId?.value};
 
   handleChange = <K extends keyof Values>(field: K) => (
     event: React.ChangeEvent<HTMLInputElement>

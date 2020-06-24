@@ -15,7 +15,7 @@ import Edit from './modals/edit';
 import Add from './modals/add';
 import {valueSuggestions} from './utils';
 import OrganizationRules from './organizationRules';
-import {Rule, EventIdStatus, SourceSuggestion, Errors, EventId, ProjectId} from './types';
+import {Rule, EventIdStatus, SourceSuggestion, EventId, ProjectId} from './types';
 import convertRelayPiiConfig from './convertRelayPiiConfig';
 import submitRules from './submitRules';
 import Content from './content';
@@ -39,7 +39,6 @@ type State = {
   sourceSuggestions: Array<SourceSuggestion>;
   eventId: EventId;
   orgRules: Array<Rule>;
-  errors: Errors;
   relayPiiConfig?: string;
 };
 
@@ -52,11 +51,8 @@ class DataScrubbing<T extends ProjectId = undefined> extends React.Component<
     savedRules: [],
     relayPiiConfig: this.props.relayPiiConfig,
     sourceSuggestions: [],
-    eventId: {
-      value: '',
-    },
+    eventId: {value: ''},
     orgRules: [],
-    errors: {},
   };
 
   componentDidMount() {
@@ -176,6 +172,21 @@ class DataScrubbing<T extends ProjectId = undefined> extends React.Component<
     );
   };
 
+  handleCloseModal = ({
+    eventId,
+    sourceSuggestions,
+  }: {
+    eventId: EventId;
+    sourceSuggestions: Array<SourceSuggestion>;
+  }) => {
+    if (eventId.value !== this.state.eventId.value) {
+      this.setState({
+        eventId,
+        sourceSuggestions,
+      });
+    }
+  };
+
   successfullySaved = (
     response: T extends undefined ? Organization : Project,
     successMessage: string
@@ -188,8 +199,9 @@ class DataScrubbing<T extends ProjectId = undefined> extends React.Component<
     }
   };
 
-  handleOpenAddDialog = () => {
+  handleOpenAddModal = () => {
     const {rules, sourceSuggestions, eventId} = this.state;
+    console.log('eventId', eventId);
     openModal(modalProps => (
       <Add
         {...modalProps}
@@ -204,16 +216,16 @@ class DataScrubbing<T extends ProjectId = undefined> extends React.Component<
         onSubmitSuccess={response => {
           this.successfullySaved(response, 'Successfully added data scrubbing rule');
         }}
+        onClose={this.handleCloseModal}
       />
     ));
   };
 
-  handleOpenAEditDialog = (id: Rule['id']) => () => {
+  handleOpenAEditModal = (id: Rule['id']) => () => {
     const {rules, sourceSuggestions, eventId} = this.state;
     openModal(modalProps => (
       <Edit
         {...modalProps}
-        onUpdateEventId={this.handleUpdateEventId}
         eventId={eventId}
         ruleId={id}
         projectId={this.props.projectId}
@@ -225,6 +237,7 @@ class DataScrubbing<T extends ProjectId = undefined> extends React.Component<
         onSubmitSuccess={response => {
           this.successfullySaved(response, 'Successfully updated data scrubbing rule');
         }}
+        onClose={this.handleCloseModal}
       />
     ));
   };
@@ -271,7 +284,7 @@ class DataScrubbing<T extends ProjectId = undefined> extends React.Component<
             <Content
               rules={rules}
               onDeleteRule={this.handleDelete}
-              onEditRule={this.handleOpenAEditDialog}
+              onEditRule={this.handleOpenAEditModal}
               disabled={disabled}
             />
             <PanelAction>
@@ -280,7 +293,7 @@ class DataScrubbing<T extends ProjectId = undefined> extends React.Component<
               </Button>
               <Button
                 disabled={disabled}
-                onClick={this.handleOpenAddDialog}
+                onClick={this.handleOpenAddModal}
                 priority="primary"
               >
                 {t('Add Rule')}

@@ -2,15 +2,17 @@ import React from 'react';
 import omit from 'lodash/omit';
 import isEqual from 'lodash/isEqual';
 
+import {addErrorMessage} from 'app/actionCreators/indicator';
 import {Client} from 'app/api';
 import {t} from 'app/locale';
 import {ModalRenderProps} from 'app/actionCreators/modal';
 import {Organization, Project} from 'app/types';
 
 import {RuleType, MethodType, Rule, ProjectId, KeysOfUnion} from '../types';
+import submitRules from '../submitRules';
 import Form from './form';
 import Modal from './modal';
-import submitRules from '../submitRules';
+import handleError from './handleError';
 
 type FormProps = React.ComponentProps<typeof Form>;
 type Values = FormProps['values'];
@@ -29,7 +31,7 @@ type Props<T extends ProjectId> = ModalRenderProps & {
 
 type State = {
   values: Values;
-  requiredValues: Array<keyof Values>;
+  requiredValues: Array<KeysOfUnion<Values>>;
   disables: FormProps['disables'];
   errors: FormProps['errors'];
   isFormValid: boolean;
@@ -58,9 +60,16 @@ class ModalManager<
   }
 
   getDefaultState(): Readonly<S> {
+    const values = {
+      type: RuleType.CREDITCARD,
+      method: MethodType.MASK,
+      source: '',
+      placeholder: '',
+      pattern: '',
+    };
     return {
-      values: {type: RuleType.CREDITCARD, method: MethodType.MASK, source: ''},
-      requiredValues: ['type', 'method', 'source'],
+      values,
+      requiredValues: this.getRequiredValues(values as Values),
       errors: {},
       disables: {},
       isFormValid: false,
@@ -77,18 +86,55 @@ class ModalManager<
     throw new Error('Not implemented');
   }
 
+  getRequiredValues = (values: Values) => {
+    const {type} = values;
+    const requiredValues: Array<KeysOfUnion<Values>> = ['type', 'method', 'source'];
+
+    if (type === RuleType.PATTERN) {
+      requiredValues.push('pattern');
+    }
+
+    return requiredValues;
+  };
+
   clearError = <F extends keyof Values>(field: F) => {
     this.setState(prevState => ({
       errors: omit(prevState.errors, field),
     }));
   };
 
+  convertRequestError = (error: ReturnType<typeof handleError>) => {
+    switch (error.type) {
+      case 'invalid-selector':
+        this.setState(prevState => ({
+          errors: {
+            ...prevState.errors,
+            source: error.message,
+          },
+        }));
+        break;
+      case 'regex-parse':
+        this.setState(prevState => ({
+          errors: {
+            ...prevState.errors,
+            pattern: error.message,
+          },
+        }));
+        break;
+      default:
+        addErrorMessage(error.message);
+    }
+  };
+
   handleChange = <R extends Rule, K extends KeysOfUnion<R>>(field: K, value: R[K]) => {
+    const values = {
+      ...this.state.values,
+      [field]: value,
+    };
+
     this.setState(prevState => ({
-      values: {
-        ...prevState.values,
-        [field]: value,
-      },
+      values,
+      requiredValues: this.getRequiredValues(values),
       errors: omit(prevState.errors, field),
     }));
   };
@@ -102,7 +148,7 @@ class ModalManager<
       closeModal();
       onSubmitSuccess(data);
     } catch (error) {
-      console.log('error', error);
+      this.convertRequestError(handleError(error));
     }
   };
 

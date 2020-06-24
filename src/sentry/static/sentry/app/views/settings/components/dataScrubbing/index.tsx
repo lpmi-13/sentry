@@ -165,6 +165,17 @@ class DataScrubbing<T extends ProjectId = undefined> extends React.Component<
     }
   };
 
+  handleUpdateEventId = (eventId: string) => {
+    this.setState(
+      {
+        eventId: {
+          value: eventId,
+        },
+      },
+      this.loadSourceSuggestions
+    );
+  };
+
   successfullySaved = (
     response: T extends undefined ? Organization : Project,
     successMessage: string
@@ -178,10 +189,12 @@ class DataScrubbing<T extends ProjectId = undefined> extends React.Component<
   };
 
   handleOpenAddDialog = () => {
-    const {rules, sourceSuggestions} = this.state;
+    const {rules, sourceSuggestions, eventId} = this.state;
     openModal(modalProps => (
       <Add
         {...modalProps}
+        onUpdateEventId={this.handleUpdateEventId}
+        eventId={eventId}
         projectId={this.props.projectId}
         savedRules={rules}
         sourceSuggestions={sourceSuggestions}
@@ -196,10 +209,12 @@ class DataScrubbing<T extends ProjectId = undefined> extends React.Component<
   };
 
   handleOpenAEditDialog = (id: Rule['id']) => () => {
-    const {rules, sourceSuggestions} = this.state;
+    const {rules, sourceSuggestions, eventId} = this.state;
     openModal(modalProps => (
       <Edit
         {...modalProps}
+        onUpdateEventId={this.handleUpdateEventId}
+        eventId={eventId}
         ruleId={id}
         projectId={this.props.projectId}
         savedRules={rules}

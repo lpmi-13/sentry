@@ -41,7 +41,7 @@ class Form extends React.Component<
   Props<Rule, KeysOfUnion<Rule>, Record<KeysOfUnion<Rule>, string>>,
   State
 > {
-  state: State = {displayEventId: false};
+  state: State = {displayEventId: !!this.props.eventId};
 
   handleChange = <K extends KeysOfUnion<Rule>>(field: K) => (
     event: React.ChangeEvent<HTMLInputElement>
@@ -225,10 +225,7 @@ const SourceGroup = styled('div')<{isExpanded: boolean}>`
 `;
 
 const RegularExpression = styled(Input)`
-  font-size: ${p => p.theme.fontSizeSmall};
-  input {
-    font-family: ${p => p.theme.text.familyMono};
-  }
+  font-family: ${p => p.theme.text.familyMono};
 `;
 
 const ToggleWrapper = styled('div')`

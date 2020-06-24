@@ -38,12 +38,6 @@ export enum SourceSuggestionType {
   STRING = 'string',
 }
 
-export enum RequestError {
-  Unknown = 'unknown',
-  InvalidSelector = 'invalid-selector',
-  RegexParse = 'regex-parse',
-}
-
 export type SourceSuggestion = {
   type: SourceSuggestionType;
   value: string;

@@ -22,10 +22,11 @@ import {
   EventId,
 } from '../../types';
 
-type Props<R extends Rule, K extends KeysOfUnion<R>, V extends Record<K, string>> = {
-  values: R;
+type Values = Omit<Record<KeysOfUnion<Rule>, string>, 'id'>;
+
+type Props<V extends Values, K extends keyof V> = {
+  values: V;
   errors: Partial<V>;
-  disables: Partial<Record<K, boolean>>;
   sourceSuggestions: Array<SourceSuggestion>;
   onValidate: (field: K) => () => void;
   onChange: (field: K, value: string) => void;
@@ -37,13 +38,10 @@ type State = {
   displayEventId: boolean;
 };
 
-class Form extends React.Component<
-  Props<Rule, KeysOfUnion<Rule>, Record<KeysOfUnion<Rule>, string>>,
-  State
-> {
+class Form extends React.Component<Props<Values, keyof Values>, State> {
   state: State = {displayEventId: !!this.props.eventId};
 
-  handleChange = <K extends KeysOfUnion<Rule>>(field: K) => (
+  handleChange = <K extends keyof Values>(field: K) => (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     this.props.onChange(field, event.target.value);

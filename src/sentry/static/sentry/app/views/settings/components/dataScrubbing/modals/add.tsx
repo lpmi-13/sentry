@@ -1,7 +1,7 @@
 import {t} from 'app/locale';
 
 import ModalManager from './modalManager';
-import {ProjectId} from '../types';
+import {ProjectId, Rule} from '../types';
 
 class Add<T extends ProjectId> extends ModalManager<T> {
   getTitle() {
@@ -10,7 +10,7 @@ class Add<T extends ProjectId> extends ModalManager<T> {
 
   getNewRules() {
     const {savedRules} = this.props;
-    return [...savedRules, this.state.values];
+    return [...savedRules, {...this.state.values, id: savedRules.length}] as Array<Rule>;
   }
 }
 

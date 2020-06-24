@@ -31,8 +31,7 @@ type Props<T extends ProjectId> = ModalRenderProps & {
 
 type State = {
   values: Values;
-  requiredValues: Array<KeysOfUnion<Values>>;
-  disables: FormProps['disables'];
+  requiredValues: Array<keyof Values>;
   errors: FormProps['errors'];
   isFormValid: boolean;
   title: string;
@@ -60,7 +59,7 @@ class ModalManager<
   }
 
   getDefaultState(): Readonly<S> {
-    const values = {
+    const values: Values = {
       type: RuleType.CREDITCARD,
       method: MethodType.MASK,
       source: '',
@@ -69,9 +68,8 @@ class ModalManager<
     };
     return {
       values,
-      requiredValues: this.getRequiredValues(values as Values),
+      requiredValues: this.getRequiredValues(values),
       errors: {},
-      disables: {},
       isFormValid: false,
       title: this.getTitle(),
     } as Readonly<S>;
@@ -158,11 +156,8 @@ class ModalManager<
     this.setState({isFormValid});
   };
 
-  handleValidate = <R extends Rule, K extends KeysOfUnion<R>>(field: K) => () => {
-    const stateValue = this.state.values[field];
-    const isFieldValueEmpty = !(typeof stateValue === 'string'
-      ? stateValue.trim()
-      : stateValue);
+  handleValidate = <K extends keyof Values>(field: K) => () => {
+    const isFieldValueEmpty = !this.state.values[field].trim();
 
     const fieldErrorAlreadyExist = this.state.errors[field];
 
@@ -186,7 +181,7 @@ class ModalManager<
   };
 
   render() {
-    const {values, errors, title, isFormValid, disables} = this.state;
+    const {values, errors, title, isFormValid} = this.state;
     const {sourceSuggestions} = this.props;
 
     return (
@@ -201,7 +196,6 @@ class ModalManager<
             onValidate={this.handleValidate}
             errors={errors}
             values={values}
-            disables={disables}
             sourceSuggestions={sourceSuggestions}
           />
         }

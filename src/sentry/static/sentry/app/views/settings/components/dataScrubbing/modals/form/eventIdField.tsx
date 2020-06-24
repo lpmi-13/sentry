@@ -8,7 +8,7 @@ import space from 'app/styles/space';
 import Field from 'app/views/settings/components/forms/field';
 
 import EventIdFieldStatusIcon from './eventIdFieldStatusIcon';
-import {EventIdStatus, EventId} from '../types';
+import {EventIdStatus, EventId} from '../../types';
 
 type Props = {
   onUpdateEventId: (eventId: string) => void;

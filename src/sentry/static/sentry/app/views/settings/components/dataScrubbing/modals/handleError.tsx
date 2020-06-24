@@ -1,6 +1,6 @@
 import {t} from 'app/locale';
 
-import {RequestError} from './types';
+import {RequestError} from '../types';
 
 type Error = {
   type: RequestError;

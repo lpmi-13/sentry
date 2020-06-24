@@ -12,24 +12,24 @@ import {IconChevron} from 'app/icons';
 import EventIdField from './eventIdField';
 import SelectField from './selectField';
 import SourceField from './sourceField';
-import {getRuleLabel, getMethodLabel} from '../utils';
+import {getRuleLabel, getMethodLabel} from '../../utils';
 import {
   MethodType,
   RuleType,
   Rule,
   SourceSuggestion,
-  EventId,
-  Errors,
   KeysOfUnion,
-} from '../types';
+  EventId,
+} from '../../types';
 
-type Props<R extends Rule, K extends KeysOfUnion<R>> = {
-  rule: R;
-  onChange: (stateProperty: K, value: R[K]) => void;
+type Props<R extends Rule, K extends KeysOfUnion<R>, V extends Record<K, string>> = {
+  values: R;
+  errors: Partial<V>;
+  disables: Partial<Record<K, boolean>>;
+  sourceSuggestions: Array<SourceSuggestion>;
   onValidate: (field: K) => () => void;
+  onChange: (field: K, value: string) => void;
   onUpdateEventId?: (eventId: string) => void;
-  errors: Errors;
-  sourceSuggestions?: Array<SourceSuggestion>;
   eventId?: EventId;
 };
 
@@ -37,7 +37,10 @@ type State = {
   displayEventId: boolean;
 };
 
-class Form extends React.Component<Props<Rule, KeysOfUnion<Rule>>, State> {
+class Form extends React.Component<
+  Props<Rule, KeysOfUnion<Rule>, Record<KeysOfUnion<Rule>, string>>,
+  State
+> {
   state: State = {displayEventId: false};
 
   handleChange = <K extends KeysOfUnion<Rule>>(field: K) => (
@@ -52,20 +55,20 @@ class Form extends React.Component<Props<Rule, KeysOfUnion<Rule>>, State> {
 
   render() {
     const {
-      rule,
+      values,
       onChange,
       errors,
       onValidate,
-      onUpdateEventId,
       sourceSuggestions,
+      onUpdateEventId,
       eventId,
     } = this.props;
-    const {method, type, source} = rule;
+    const {method, type, source} = values;
     const {displayEventId} = this.state;
 
     return (
       <React.Fragment>
-        <FieldGroup hasTwoColumns={rule.method === MethodType.REPLACE}>
+        <FieldGroup hasTwoColumns={values.method === MethodType.REPLACE}>
           <Field
             label={t('Method')}
             help={t('What to do')}
@@ -85,7 +88,7 @@ class Form extends React.Component<Props<Rule, KeysOfUnion<Rule>>, State> {
               onChange={({value}) => onChange('method', value)}
             />
           </Field>
-          {rule.method === MethodType.REPLACE && (
+          {values.method === MethodType.REPLACE && (
             <Field
               label={t('Custom Placeholder (Optional)')}
               help={t('It will replace the default placeholder [Filtered]')}
@@ -99,12 +102,12 @@ class Form extends React.Component<Props<Rule, KeysOfUnion<Rule>>, State> {
                 name="placeholder"
                 placeholder={`[${t('Filtered')}]`}
                 onChange={this.handleChange('placeholder')}
-                value={rule.placeholder}
+                value={values.placeholder}
               />
             </Field>
           )}
         </FieldGroup>
-        <FieldGroup hasTwoColumns={rule.type === RuleType.PATTERN}>
+        <FieldGroup hasTwoColumns={values.type === RuleType.PATTERN}>
           <Field
             label={t('Data Type')}
             help={t(
@@ -126,7 +129,7 @@ class Form extends React.Component<Props<Rule, KeysOfUnion<Rule>>, State> {
               onChange={({value}) => onChange('type', value)}
             />
           </Field>
-          {rule.type === RuleType.PATTERN && (
+          {values.type === RuleType.PATTERN && (
             <Field
               label={t('Regex matches')}
               help={t('Custom Perl-style regex (PCRE)')}
@@ -142,7 +145,7 @@ class Form extends React.Component<Props<Rule, KeysOfUnion<Rule>>, State> {
                 name="pattern"
                 placeholder={t('[a-zA-Z0-9]+')}
                 onChange={this.handleChange('pattern')}
-                value={rule.pattern}
+                value={values.pattern}
                 onBlur={onValidate('pattern')}
               />
             </Field>

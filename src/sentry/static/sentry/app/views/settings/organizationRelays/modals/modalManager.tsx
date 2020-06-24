@@ -110,7 +110,7 @@ class DialogManager<
     const {onSubmitSuccess, closeModal, orgSlug, api} = this.props;
 
     const trustedRelays = this.getData().trustedRelays.map(trustedRelay =>
-      omit(trustedRelay, 'id')
+      omit(trustedRelay, ['id', 'created', 'lastModified'])
     );
 
     try {

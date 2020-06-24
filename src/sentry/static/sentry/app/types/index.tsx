@@ -91,9 +91,10 @@ export type OrganizationSummary = {
 };
 
 export type Relay = {
+  id: string;
   publicKey: string;
   name: string;
-  created: string;
+  created?: string;
   lastModified?: string;
   description?: string;
 };

@@ -12,7 +12,7 @@ type Props = {
   disabled: boolean;
 } & ModalRenderProps;
 
-const Dialog = ({
+const Modal = ({
   title,
   onSave,
   content,
@@ -36,4 +36,4 @@ const Dialog = ({
   </React.Fragment>
 );
 
-export default Dialog;
+export default Modal;

@@ -8,8 +8,9 @@ import Textarea from 'app/views/settings/components/forms/controls/textarea';
 import Field from 'app/views/settings/components/forms/field';
 import TextCopyInput from 'app/views/settings/components/forms/textCopyInput';
 import space from 'app/styles/space';
+import {Relay} from 'app/types';
 
-type FormField = 'name' | 'description' | 'publicKey';
+type FormField = keyof Pick<Relay, 'id' | 'name' | 'publicKey' | 'description'>;
 type Values = Record<FormField, string>;
 
 type Props = {

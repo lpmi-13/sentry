@@ -2,6 +2,7 @@ import React from 'react';
 import {RouteComponentProps} from 'react-router/lib/Router';
 import styled from '@emotion/styled';
 import {ClassNames} from '@emotion/core';
+import omit from 'lodash/omit';
 
 import theme from 'app/utils/theme';
 import {openModal} from 'app/actionCreators/modal';
@@ -24,7 +25,8 @@ import Tooltip from 'app/components/tooltip';
 import QuestionTooltip from 'app/components/questionTooltip';
 import overflowEllipsis from 'app/styles/overflowEllipsis';
 
-import {Add, Edit} from './dialogs';
+import Add from './modals/add';
+import Edit from './modals/edit';
 
 const RELAY_DOCS_LINK = 'https://getsentry.github.io/relay/';
 
@@ -53,13 +55,20 @@ class Relays extends AsyncComponent<Props, State> {
   }
 
   setRelays = (trustedRelays: Array<Relay>) => {
-    this.setState({relays: trustedRelays});
+    this.setState({
+      relays: trustedRelays.map((trustedRelay, index) => ({
+        ...trustedRelay,
+        id: String(index),
+      })),
+    });
   };
 
-  handleDelete = (publicKey: Relay['publicKey']) => async () => {
+  handleDelete = (id: Relay['id']) => async () => {
     const {relays} = this.state;
 
-    const trustedRelays = relays.filter(relay => relay.publicKey !== publicKey);
+    const trustedRelays = relays
+      .filter(relay => relay.id !== id)
+      .map(relay => omit(relay, ['id', 'created', 'lastModified']));
 
     try {
       const response = await this.api.requestPromise(
@@ -81,8 +90,8 @@ class Relays extends AsyncComponent<Props, State> {
     this.setRelays(response.trustedRelays);
   };
 
-  handleOpenEditDialog = (publicKey: Relay['publicKey']) => () => {
-    const editRelay = this.state.relays.find(relay => relay.publicKey === publicKey);
+  handleOpenEditDialog = (id: Relay['id']) => () => {
+    const editRelay = this.state.relays.find(relay => relay.id === id);
 
     if (!editRelay) {
       return;
@@ -158,10 +167,10 @@ class Relays extends AsyncComponent<Props, State> {
                 }
               `}
             >
-              {relays.map(({publicKey: key, name, created, description}) => {
+              {relays.map(({publicKey: key, name, created, description, id}) => {
                 const maskedKey = '*************************';
                 return (
-                  <React.Fragment key={key}>
+                  <React.Fragment key={`${key}-${id}`}>
                     {description ? (
                       <Name>
                         <Text>{name}</Text>
@@ -188,12 +197,12 @@ class Relays extends AsyncComponent<Props, State> {
                         title={t('Edit Key')}
                         label={t('Edit Key')}
                         icon={<IconEdit />}
-                        onClick={this.handleOpenEditDialog(key)}
+                        onClick={this.handleOpenEditDialog(id)}
                       />
                       <StyledButton
                         title={t('Delete Key')}
                         label={t('Delete Key')}
-                        onClick={this.handleDelete(key)}
+                        onClick={this.handleDelete(id)}
                         icon={<IconDelete />}
                       />
                     </Actions>
